@@ -23,6 +23,8 @@ from tools.crewai_tools_v2 import (
 )
 
 os.environ["SERPER_API_KEY"] = SERPER_API_KEY
+# LiteLLM needs the API key in env for OpenAI-compatible providers
+os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
 
@@ -32,6 +34,8 @@ nvidia_brain = LLM(
     api_key=NVIDIA_API_KEY,
     temperature=0,
     max_tokens=2000,
+    timeout=120,        # 120s timeout for Railway (higher latency)
+    max_retries=3,      # retry on connection errors
 )
 
 # ── Tool Instances ─────────────────────────────────────────────────────────────
