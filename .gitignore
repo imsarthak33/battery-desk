@@ -1,0 +1,35 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment secrets
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs & cache
+*.log
+cache/
+
+# Reports (generated at runtime)
+reports/
+
+# Gemini agent files
+.gemini/

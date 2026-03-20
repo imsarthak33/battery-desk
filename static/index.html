@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BatteryDesk — Live Scrap Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #090c0f;
+    --surface:  #0e1318;
+    --border:   #1c2530;
+    --border2:  #243040;
+    --amber:    #f59e0b;
+    --amber2:   #fbbf24;
+    --green:    #10b981;
+    --red:      #ef4444;
+    --blue:     #3b82f6;
+    --muted:    #4b5563;
+    --text:     #d1d5db;
+    --textdim:  #6b7280;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+    --display:  'Bebas Neue', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    color: var(--amber);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .logo span { color: var(--text); }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.7rem;
+    color: var(--textdim);
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+    display: inline-block;
+    margin-right: 4px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--amber);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Main layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 52px);
+  }
+
+  /* ── Left panel ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .panel-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    color: var(--textdim);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Chemistry selector */
+  .chem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .chem-btn {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    color: var(--textdim);
+    padding: 0.6rem 0.4rem;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    transition: all 0.15s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chem-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .chem-btn.active {
+    background: rgba(245,158,11,0.1);
+    border-color: var(--amber);
+    color: var(--amber);
+    box-shadow: 0 0 12px rgba(245,158,11,0.15);
+  }
+
+  .chem-btn .sub {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 300;
+    color: var(--textdim);
+    margin-top: 2px;
+  }
+
+  .chem-btn.active .sub { color: rgba(245,158,11,0.6); }
+
+  /* Ask price input */
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .ask-input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    padding: 0 0.8rem;
+    transition: border-color 0.15s;
+  }
+
+  .ask-input-wrap:focus-within {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 2px rgba(245,158,11,0.08);
+  }
+
+  .currency-symbol {
+    color: var(--amber);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+
+  #askInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1.4rem;
+    font-weight: 500;
+    width: 100%;
+    padding: 0.5rem 0;
+    letter-spacing: 0.04em;
+  }
+
+  .ask-unit {
+    color: var(--textdim);
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+
+  /* Run button */
+  #runBtn {
+    background: var(--amber);
+    color: #000;
+    border: none;
+    padding: 0.85rem;
+    font-family: var(--display);
+    font-size: 1.15rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #runBtn:hover { background: var(--amber2); transform: translateY(-1px); }
+  #runBtn:active { transform: translateY(0); }
+  #runBtn:disabled {
+    background: var(--border2);
+    color: var(--textdim);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Progress steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.68rem;
+    color: var(--textdim);
+    border-left: 2px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .step.active {
+    color: var(--amber);
+    border-left-color: var(--amber);
+    background: rgba(245,158,11,0.05);
+  }
+
+  .step.done {
+    color: var(--green);
+    border-left-color: var(--green);
+  }
+
+  .step-icon { font-size: 0.8rem; width: 16px; text-align: center; }
+
+  /* Forex ticker */
+  .forex-ticker {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .forex-label { font-size: 0.62rem; color: var(--textdim); }
+  .forex-rate { font-size: 1.1rem; font-weight: 600; color: var(--amber); }
+  .forex-src { font-size: 0.58rem; color: var(--textdim); }
+
+  /* ── Right panel ── */
+  .content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow-y: auto;
+  }
+
+  /* Section cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.2rem;
+    position: relative;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-title {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    color: var(--textdim);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Metal price grid */
+  .metals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .metal-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 0.8rem;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.4s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .metal-name {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--textdim);
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .metal-price {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .metal-unit { font-size: 0.6rem; color: var(--textdim); }
+
+  .confidence-bar {
+    height: 2px;
+    margin-top: 0.6rem;
+    background: var(--border);
+    position: relative;
+  }
+
+  .confidence-fill {
+    height: 100%;
+    transition: width 0.8s ease;
+  }
+
+  .conf-HIGH .confidence-fill { background: var(--green); width: 100%; }
+  .conf-MEDIUM .confidence-fill { background: var(--amber); width: 66%; }
+  .conf-LOW .confidence-fill { background: var(--red); width: 33%; }
+
+  .confidence-label {
+    font-size: 0.58rem;
+    color: var(--textdim);
+    margin-top: 0.3rem;
+  }
+
+  /* Decision panel */
+  .decision-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .decision-cell {
+    background: var(--bg);
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .decision-cell .label {
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    color: var(--textdim);
+    text-transform: uppercase;
+  }
+
+  .decision-cell .value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-family: var(--display);
+  }
+
+  .decision-cell .sub {
+    font-size: 0.62rem;
+    color: var(--textdim);
+  }
+
+  /* Big decision box */
+  .decision-box {
+    padding: 1.5rem;
+    text-align: center;
+    font-family: var(--display);
+    font-size: 2.4rem;
+    letter-spacing: 0.2em;
+    border: 2px solid;
+    animation: decisionReveal 0.5s ease;
+  }
+
+  @keyframes decisionReveal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .decision-box.buy {
+    color: var(--green);
+    border-color: var(--green);
+    background: rgba(16,185,129,0.05);
+    box-shadow: 0 0 30px rgba(16,185,129,0.1);
+    text-shadow: 0 0 20px rgba(16,185,129,0.4);
+  }
+
+  .decision-box.stop {
+    color: var(--red);
+    border-color: var(--red);
+    background: rgba(239,68,68,0.05);
+    box-shadow: 0 0 30px rgba(239,68,68,0.1);
+    text-shadow: 0 0 20px rgba(239,68,68,0.4);
+  }
+
+  /* Forecast */
+  .forecast-signal {
+    font-family: var(--display);
+    font-size: 1.8rem;
+    letter-spacing: 0.15em;
+    padding: 0.8rem 1.2rem;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+
+  .forecast-signal.sell {
+    color: var(--red);
+    border: 1px solid var(--red);
+    background: rgba(239,68,68,0.08);
+  }
+
+  .forecast-signal.hold {
+    color: var(--green);
+    border: 1px solid var(--green);
+    background: rgba(16,185,129,0.08);
+  }
+
+  /* Sentiment bars */
+  .sentiment-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .sentiment-metal {
+    width: 70px;
+    color: var(--textdim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .sentiment-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sentiment-bar-bull {
+    height: 100%;
+    background: var(--green);
+    transition: width 1s ease;
+  }
+
+  .sentiment-label {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+
+  .sentiment-label.BULLISH { color: var(--green); }
+  .sentiment-label.BEARISH { color: var(--red); }
+  .sentiment-label.MIXED { color: var(--amber); }
+
+  /* Headlines */
+  .headline-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    display: flex;
+    gap: 0.6rem;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .headline-item:last-child { border-bottom: none; }
+
+  .hl-sentiment {
+    width: 6px;
+    flex-shrink: 0;
+    border-radius: 2px;
+    margin-top: 2px;
+    height: 14px;
+  }
+
+  .hl-sentiment.bullish { background: var(--green); }
+  .hl-sentiment.bearish { background: var(--red); }
+  .hl-sentiment.neutral { background: var(--muted); }
+
+  .hl-source { color: var(--amber); font-size: 0.6rem; }
+
+  /* Full report */
+  .full-report {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    font-size: 0.68rem;
+    line-height: 1.8;
+    color: var(--textdim);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  /* Loader */
+  .loader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--amber);
+    padding: 2rem;
+    justify-content: center;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Blinking cursor */
+  .blink {
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Margin stack visual */
+  .margin-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .margin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .margin-row:last-child { border-bottom: none; }
+  .margin-row .label { color: var(--textdim); }
+  .margin-row .val { font-weight: 600; }
+  .margin-row.highlight .label { color: var(--text); }
+  .margin-row.highlight .val { color: var(--amber); font-size: 1rem; }
+  .margin-row.decision-row .val { font-size: 0.9rem; }
+
+  /* Welcome screen */
+  .welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 1rem;
+    color: var(--textdim);
+    text-align: center;
+  }
+
+  .welcome-logo {
+    font-family: var(--display);
+    font-size: 4rem;
+    color: var(--border2);
+    letter-spacing: 0.2em;
+    line-height: 1;
+  }
+
+  .welcome p { font-size: 0.75rem; max-width: 400px; line-height: 1.7; }
+
+  /* Error */
+  .error-box {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid var(--red);
+    padding: 1rem;
+    color: var(--red);
+    font-size: 0.72rem;
+    line-height: 1.6;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="logo">BATTERY<span>DESK</span></div>
+  <div class="topbar-right">
+    <span><span class="live-dot"></span>LIVE</span>
+    <span>MCX · LME · Reuters · Mining.com</span>
+    <span id="clock">--:--:--</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── Left Sidebar ── -->
+  <div class="sidebar">
+
+    <!-- Chemistry selector -->
+    <div>
+      <div class="panel-label">Battery Chemistry</div>
+      <div class="chem-grid" id="chemGrid">
+        <button class="chem-btn active" data-chem="NMC" onclick="selectChem(this)">
+          NMC <span class="sub">EV Batteries</span>
+        </button>
+        <button class="chem-btn" data-chem="NCA" onclick="selectChem(this)">
+          NCA <span class="sub">Tesla</span>
+        </button>
+        <button class="chem-btn" data-chem="LCO" onclick="selectChem(this)">
+          LCO <span class="sub">Phones/Laptops</span>
+        </button>
+        <button class="chem-btn" data-chem="LFP" onclick="selectChem(this)">
+          LFP <span class="sub">BYD/CATL</span>
+        </button>
+        <button class="chem-btn" data-chem="LEAD_ACID" onclick="selectChem(this)" style="grid-column: span 2;">
+          LEAD ACID <span class="sub">Cars / Inverters</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Ask price -->
+    <div class="input-group">
+      <div class="panel-label">Aggregator Ask Price</div>
+      <div class="ask-input-wrap">
+        <span class="currency-symbol">₹</span>
+        <input type="number" id="askInput" value="300" min="1" max="99999">
+        <span class="ask-unit">/ kg</span>
+      </div>
+    </div>
+
+    <!-- Run button -->
+    <button id="runBtn" onclick="runAnalysis()">▶ RUN ANALYSIS</button>
+
+    <!-- Progress steps -->
+    <div>
+      <div class="panel-label">Pipeline Status</div>
+      <div class="steps">
+        <div class="step" id="step-0"><span class="step-icon">◎</span> Waiting</div>
+        <div class="step" id="step-1"><span class="step-icon">💱</span> Forex Rate</div>
+        <div class="step" id="step-2"><span class="step-icon">⛏</span> Metal Prices</div>
+        <div class="step" id="step-3"><span class="step-icon">📊</span> Margin Calc</div>
+        <div class="step" id="step-4"><span class="step-icon">📰</span> News Intel</div>
+        <div class="step" id="step-5"><span class="step-icon">🤖</span> AI Forecast</div>
+      </div>
+    </div>
+
+    <!-- Forex ticker -->
+    <div>
+      <div class="panel-label">Live Forex</div>
+      <div class="forex-ticker">
+        <div>
+          <div class="forex-label">USD / INR</div>
+          <div class="forex-rate" id="forexRate">—</div>
+          <div class="forex-src" id="forexSrc">—</div>
+        </div>
+        <div style="font-size:1.4rem; color:var(--textdim);">₹</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Main Content ── -->
+  <div class="content" id="content">
+    <div class="welcome">
+      <div class="welcome-logo">BD</div>
+      <p>Select a battery chemistry, enter your aggregator's ask price, and run the analysis. Live prices from investing.com, TradingEconomics, MCX India, Reuters, and LME.</p>
+      <div style="font-size:0.65rem; color:var(--border2); letter-spacing:0.1em; margin-top:1rem;">
+        NMC · NCA · LCO · LFP · LEAD ACID
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let selectedChem = 'NMC';
+  let isRunning = false;
+
+  // ── Clock ──
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toUTCString().slice(17, 25) + ' UTC';
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── Chemistry selector ──
+  function selectChem(btn) {
+    if (isRunning) return;
+    document.querySelectorAll('.chem-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedChem = btn.dataset.chem;
+  }
+
+  // ── Reset steps ──
+  function resetSteps() {
+    for (let i = 0; i <= 5; i++) {
+      const el = document.getElementById(`step-${i}`);
+      if (el) el.className = 'step';
+    }
+  }
+
+  function setStep(n, done = false) {
+    resetSteps();
+    for (let i = 0; i < n; i++) {
+      const el = document.getElementById(`step-${i}`);
+      if (el) el.className = 'step done';
+    }
+    const el = document.getElementById(`step-${n}`);
+    if (el) el.className = done ? 'step done' : 'step active';
+  }
+
+  // ── Run analysis ──
+  function runAnalysis() {
+    if (isRunning) return;
+    isRunning = true;
+
+    const ask = parseFloat(document.getElementById('askInput').value) || 300;
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ ANALYZING...';
+
+    resetSteps();
+    setStep(0);
+
+    const content = document.getElementById('content');
+    content.innerHTML = `<div class="loader"><div class="spinner"></div> Initializing pipeline<span class="blink">_</span></div>`;
+
+    const forexRate = document.getElementById('forexRate');
+    const forexSrc = document.getElementById('forexSrc');
+
+    // Sections we'll build up
+    let metalsSection = null;
+    let calcSection = null;
+    let newsSection = null;
+    let forecastSection = null;
+
+    // ── SSE connection ──
+    fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chemistry: selectedChem, aggregator_ask_inr: ask }),
+    }).then(response => {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) { finish(); return; }
+          buffer += decoder.decode(value, { stream: true });
+
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop();
+
+          parts.forEach(part => {
+            const lines = part.split('\n');
+            let event = 'message', data = '';
+            lines.forEach(line => {
+              if (line.startsWith('event: ')) event = line.slice(7);
+              if (line.startsWith('data: ')) data = line.slice(6);
+            });
+            if (data) handleEvent(event, JSON.parse(data));
+          });
+
+          read();
+        });
+      }
+      read();
+    }).catch(err => {
+      showError('Connection failed: ' + err.message);
+      finish();
+    });
+
+    function handleEvent(event, data) {
+      switch(event) {
+        case 'status':
+          setStep(data.step || 0);
+          if (content.querySelector('.loader')) {
+            content.innerHTML = '';
+          }
+          break;
+
+        case 'forex':
+          forexRate.textContent = '₹' + data.rate.toFixed(4);
+          forexSrc.textContent = data.source;
+          setStep(1, true);
+          break;
+
+        case 'metal_price':
+          if (!metalsSection) {
+            metalsSection = createSection('LIVE METAL PRICES', 'metals-grid', '');
+            content.appendChild(metalsSection.card);
+          }
+          addMetalCard(metalsSection.body, data);
+          setStep(2);
+          break;
+
+        case 'calculation':
+          setStep(3, true);
+          calcSection = createCalcSection(data);
+          content.appendChild(calcSection);
+          break;
+
+        case 'news':
+          setStep(4, true);
+          newsSection = createNewsSection(data);
+          content.appendChild(newsSection);
+          break;
+
+        case 'forecast':
+          setStep(5, true);
+          forecastSection = createForecastSection(data);
+          content.appendChild(forecastSection);
+          break;
+
+        case 'error':
+          showError(data.message);
+          break;
+
+        case 'done':
+          setStep(5, true);
+          break;
+      }
+    }
+
+    function finish() {
+      isRunning = false;
+      btn.disabled = false;
+      btn.textContent = '▶ RUN ANALYSIS';
+    }
+  }
+
+  // ── UI builders ──
+
+  function createSection(title, bodyClass, bodyId) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="card-title">${title}</div>`;
+    const body = document.createElement('div');
+    body.className = bodyClass;
+    if (bodyId) body.id = bodyId;
+    card.appendChild(body);
+    return { card, body };
+  }
+
+  function addMetalCard(container, data) {
+    const confClass = 'conf-' + (data.confidence.split('-')[0]);
+    const div = document.createElement('div');
+    div.className = `metal-card ${confClass}`;
+    div.innerHTML = `
+      <div class="metal-name">${data.metal.toUpperCase()}</div>
+      <div class="metal-price">$${Number(data.price).toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
+      <div class="metal-unit">USD / tonne · ${data.sources} source${data.sources !== 1 ? 's' : ''}</div>
+      <div class="confidence-bar"><div class="confidence-fill"></div></div>
+      <div class="confidence-label">${data.confidence} · ±${data.spread.toFixed(1)}%</div>
+    `;
+    container.appendChild(div);
+  }
+
+  function createCalcSection(data) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const isBuy = data.buy_decision;
+    const headroom = data.max_buy_price_inr - data.aggregator_ask_inr;
+    const headroomColor = headroom >= 0 ? 'var(--green)' : 'var(--red)';
+
+    card.innerHTML = `
+      <div class="card-title">MARGIN ANALYSIS — ${data.chemistry}</div>
+
+      <div class="decision-panel" style="margin-bottom:1.2rem;">
+        <div class="decision-cell">
+          <div class="label">Selling Price</div>
+          <div class="value" style="color:var(--text); font-size:1.3rem;">₹${data.selling_price_inr.toFixed(2)}</div>
+          <div class="sub">after 75% payable rate</div>
+        </div>
+        <div class="decision-cell">
+          <div class="label">Max Buy Price</div>
+          <div class="value" style="color:var(--amber);">₹${data.max_buy_price_inr.toFixed(2)}</div>
+          <div class="sub">after margins + costs</div>
+        </div>
+        <div class="decision-cell">
+          <div class="label">Headroom</div>
+          <div class="value" style="color:${headroomColor}; font-size:1.3rem;">₹${headroom.toFixed(2)}</div>
+          <div class="sub">ask vs max buy</div>
+        </div>
+      </div>
+
+      <div class="margin-stack" style="margin-bottom:1.2rem;">
+        <div class="margin-row"><span class="label">Gross Metal Value</span><span class="val">$${data.gross_metal_value_usd.toFixed(4)}/kg</span></div>
+        <div class="margin-row"><span class="label">Selling Price (USD → INR @ ₹${data.usd_inr_rate.toFixed(2)})</span><span class="val">₹${data.selling_price_inr.toFixed(2)}</span></div>
+        <div class="margin-row"><span class="label">− Profit Margin (10%)</span><span class="val" style="color:var(--red);">−₹${(data.selling_price_inr * 0.10).toFixed(2)}</span></div>
+        <div class="margin-row"><span class="label">− Error Buffer (1%)</span><span class="val" style="color:var(--red);">−₹${(data.selling_price_inr * 0.01).toFixed(2)}</span></div>
+        <div class="margin-row"><span class="label">− Hub Costs (fixed)</span><span class="val" style="color:var(--red);">−₹12.70</span></div>
+        <div class="margin-row highlight"><span class="label">MAX BUY PRICE</span><span class="val">₹${data.max_buy_price_inr.toFixed(2)}/kg</span></div>
+        <div class="margin-row"><span class="label">Aggregator Ask</span><span class="val">₹${data.aggregator_ask_inr.toFixed(2)}/kg</span></div>
+        ${data.margin_at_ask_pct !== null ? `<div class="margin-row"><span class="label">Actual Margin @ Ask</span><span class="val" style="color:${data.margin_at_ask_pct > 0 ? 'var(--green)' : 'var(--red)'};">${data.margin_at_ask_pct.toFixed(1)}%</span></div>` : ''}
+      </div>
+
+      <div class="decision-box ${isBuy ? 'buy' : 'stop'}">
+        ${isBuy ? '✅ BUY' : '🛑 HARD STOP'}
+      </div>
+
+      ${data.warnings && data.warnings.length > 0 ? `
+        <div style="margin-top:0.8rem; font-size:0.65rem; color:var(--amber); line-height:1.8;">
+          ${data.warnings.map(w => `⚠ ${w}`).join('<br>')}
+        </div>
+      ` : ''}
+    `;
+    return card;
+  }
+
+  function createNewsSection(data) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const sentimentHTML = Object.entries(data.sentiment || {}).map(([metal, s]) => {
+      const total = s.total_articles || 1;
+      const bullPct = Math.round((s.bullish / total) * 100);
+      return `
+        <div class="sentiment-row">
+          <div class="sentiment-metal">${metal}</div>
+          <div class="sentiment-bar-wrap">
+            <div class="sentiment-bar-bull" style="width:${bullPct}%"></div>
+          </div>
+          <div class="sentiment-label ${s.signal}">${s.signal || '—'}</div>
+          <div style="font-size:0.6rem; color:var(--textdim);">${total} articles</div>
+        </div>
+      `;
+    }).join('');
+
+    const headlinesHTML = (data.headlines || []).map(h => `
+      <div class="headline-item">
+        <div class="hl-sentiment ${h.sentiment}"></div>
+        <div>
+          <div>${h.headline}</div>
+          <div class="hl-source">${h.source} · ${h.metal.toUpperCase()}</div>
+        </div>
+      </div>
+    `).join('');
+
+    card.innerHTML = `
+      <div class="card-title">MARKET INTELLIGENCE — ${data.articles_total} ARTICLES SCRAPED</div>
+      <div style="margin-bottom:1rem;">
+        <div class="panel-label" style="margin-bottom:0.6rem;">Sentiment by Metal</div>
+        ${sentimentHTML || '<div style="color:var(--textdim);font-size:0.72rem;">No sentiment data</div>'}
+      </div>
+      <div>
+        <div class="panel-label" style="margin-bottom:0.6rem;">Top Headlines</div>
+        ${headlinesHTML || '<div style="color:var(--textdim);font-size:0.72rem;">No headlines scraped</div>'}
+      </div>
+    `;
+    return card;
+  }
+
+  function createForecastSection(data) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const isSell = data.signal === 'SELL TODAY';
+
+    card.innerHTML = `
+      <div class="card-title">AI AGENT FORECAST</div>
+      <div class="forecast-signal ${isSell ? 'sell' : 'hold'}">${data.signal}</div>
+      <div class="panel-label" style="margin-bottom:0.5rem;">Full Agent Report</div>
+      <div class="full-report">${data.full_report || 'No report generated.'}</div>
+    `;
+    return card;
+  }
+
+  function showError(msg) {
+    const content = document.getElementById('content');
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <div class="card-title">ERROR</div>
+      <div class="error-box">${msg}</div>
+    `;
+    content.appendChild(div);
+  }
+</script>
+</body>
+</html>
