@@ -101,7 +101,7 @@ def run_analysis(chemistry: str, aggregator_ask_inr: float) -> dict:
 def save_report(results: list[dict]) -> Path:
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     path = REPORTS_DIR / f"analysis_v2_{ts}.json"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
     return path
 

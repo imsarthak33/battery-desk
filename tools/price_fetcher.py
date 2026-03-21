@@ -405,7 +405,7 @@ class MetalPriceFetcher:
 
     def _save_cache(self, prices: dict):
         try:
-            with open(CACHE_FILE, "w") as f:
+            with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump(prices, f, indent=2)
         except Exception as e:
             logger.warning(f"Could not save price cache: {e}")
@@ -414,7 +414,7 @@ class MetalPriceFetcher:
         try:
             if not CACHE_FILE.exists():
                 return None
-            with open(CACHE_FILE) as f:
+            with open(CACHE_FILE, encoding="utf-8") as f:
                 cached = json.load(f)
             cache_time = datetime.fromisoformat(cached.get("timestamp", "2000-01-01"))
             age_hours = (datetime.utcnow() - cache_time).total_seconds() / 3600

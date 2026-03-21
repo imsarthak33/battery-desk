@@ -254,7 +254,7 @@ class PriceAggregator:
 
     def _save_cache(self, data: dict):
         try:
-            with open(CACHE_FILE, "w") as f:
+            with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             logger.warning(f"Cache save failed: {e}")
@@ -263,7 +263,7 @@ class PriceAggregator:
         try:
             if not CACHE_FILE.exists():
                 return None
-            with open(CACHE_FILE) as f:
+            with open(CACHE_FILE, encoding="utf-8") as f:
                 cached = json.load(f)
             cache_time = datetime.fromisoformat(cached.get("_meta", {}).get("timestamp", "2000-01-01"))
             age_h = (datetime.utcnow() - cache_time).total_seconds() / 3600

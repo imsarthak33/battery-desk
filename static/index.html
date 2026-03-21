@@ -3,1061 +3,1487 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BatteryDesk — Live Scrap Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<title>BatteryDesk — Battery Metals Intelligence Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root {
-    --bg:       #090c0f;
-    --surface:  #0e1318;
-    --border:   #1c2530;
-    --border2:  #243040;
-    --amber:    #f59e0b;
-    --amber2:   #fbbf24;
-    --green:    #10b981;
-    --red:      #ef4444;
-    --blue:     #3b82f6;
-    --muted:    #4b5563;
-    --text:     #d1d5db;
-    --textdim:  #6b7280;
-    --mono:     'IBM Plex Mono', monospace;
-    --sans:     'IBM Plex Sans', sans-serif;
-    --display:  'Bebas Neue', sans-serif;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* ── Scanline overlay ── */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* ── Top bar ── */
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 2rem;
-    height: 52px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .logo {
-    font-family: var(--display);
-    font-size: 1.6rem;
-    letter-spacing: 0.08em;
-    color: var(--amber);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .logo span { color: var(--text); }
-
-  .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    font-size: 0.7rem;
-    color: var(--textdim);
-  }
-
-  .live-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: pulse 2s ease-in-out infinite;
-    display: inline-block;
-    margin-right: 4px;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  #clock {
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    color: var(--amber);
-    letter-spacing: 0.05em;
-  }
-
-  /* ── Main layout ── */
-  .main {
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 0;
-    min-height: calc(100vh - 52px);
-  }
-
-  /* ── Left panel ── */
-  .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-  }
-
-  .panel-label {
-    font-size: 0.62rem;
-    letter-spacing: 0.18em;
-    color: var(--textdim);
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
-  /* Chemistry selector */
-  .chem-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-  }
-
-  .chem-btn {
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    color: var(--textdim);
-    padding: 0.6rem 0.4rem;
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    transition: all 0.15s;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .chem-btn:hover {
-    border-color: var(--amber);
-    color: var(--amber);
-  }
-
-  .chem-btn.active {
-    background: rgba(245,158,11,0.1);
-    border-color: var(--amber);
-    color: var(--amber);
-    box-shadow: 0 0 12px rgba(245,158,11,0.15);
-  }
-
-  .chem-btn .sub {
-    display: block;
-    font-size: 0.58rem;
-    font-weight: 300;
-    color: var(--textdim);
-    margin-top: 2px;
-  }
-
-  .chem-btn.active .sub { color: rgba(245,158,11,0.6); }
-
-  /* Ask price input */
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .ask-input-wrap {
-    display: flex;
-    align-items: center;
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    padding: 0 0.8rem;
-    transition: border-color 0.15s;
-  }
-
-  .ask-input-wrap:focus-within {
-    border-color: var(--amber);
-    box-shadow: 0 0 0 2px rgba(245,158,11,0.08);
-  }
-
-  .currency-symbol {
-    color: var(--amber);
-    font-size: 1rem;
-    font-weight: 600;
-    margin-right: 0.3rem;
-  }
-
-  #askInput {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 1.4rem;
-    font-weight: 500;
-    width: 100%;
-    padding: 0.5rem 0;
-    letter-spacing: 0.04em;
-  }
-
-  .ask-unit {
-    color: var(--textdim);
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  /* Run button */
-  #runBtn {
-    background: var(--amber);
-    color: #000;
-    border: none;
-    padding: 0.85rem;
-    font-family: var(--display);
-    font-size: 1.15rem;
-    letter-spacing: 0.15em;
-    cursor: pointer;
-    width: 100%;
-    transition: all 0.15s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  #runBtn:hover { background: var(--amber2); transform: translateY(-1px); }
-  #runBtn:active { transform: translateY(0); }
-  #runBtn:disabled {
-    background: var(--border2);
-    color: var(--textdim);
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  /* Progress steps */
-  .steps {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .step {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.4rem 0.5rem;
-    font-size: 0.68rem;
-    color: var(--textdim);
-    border-left: 2px solid var(--border);
-    transition: all 0.2s;
-  }
-
-  .step.active {
-    color: var(--amber);
-    border-left-color: var(--amber);
-    background: rgba(245,158,11,0.05);
-  }
-
-  .step.done {
-    color: var(--green);
-    border-left-color: var(--green);
-  }
-
-  .step-icon { font-size: 0.8rem; width: 16px; text-align: center; }
-
-  /* Forex ticker */
-  .forex-ticker {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 0.6rem 0.8rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .forex-label { font-size: 0.62rem; color: var(--textdim); }
-  .forex-rate { font-size: 1.1rem; font-weight: 600; color: var(--amber); }
-  .forex-src { font-size: 0.58rem; color: var(--textdim); }
-
-  /* ── Right panel ── */
-  .content {
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-    overflow-y: auto;
-  }
-
-  /* Section cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 1.2rem;
-    position: relative;
-    animation: fadeIn 0.3s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .card-title {
-    font-size: 0.62rem;
-    letter-spacing: 0.18em;
-    color: var(--textdim);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .card-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  /* Metal price grid */
-  .metals-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.8rem;
-  }
-
-  .metal-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 0.8rem;
-    position: relative;
-    overflow: hidden;
-    animation: slideIn 0.4s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .metal-name {
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    color: var(--textdim);
-    text-transform: uppercase;
-    margin-bottom: 0.3rem;
-  }
-
-  .metal-price {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.02em;
-  }
-
-  .metal-unit { font-size: 0.6rem; color: var(--textdim); }
-
-  .confidence-bar {
-    height: 2px;
-    margin-top: 0.6rem;
-    background: var(--border);
-    position: relative;
-  }
-
-  .confidence-fill {
-    height: 100%;
-    transition: width 0.8s ease;
-  }
-
-  .conf-HIGH .confidence-fill { background: var(--green); width: 100%; }
-  .conf-MEDIUM .confidence-fill { background: var(--amber); width: 66%; }
-  .conf-LOW .confidence-fill { background: var(--red); width: 33%; }
-
-  .confidence-label {
-    font-size: 0.58rem;
-    color: var(--textdim);
-    margin-top: 0.3rem;
-  }
-
-  /* Decision panel */
-  .decision-panel {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-  }
-
-  .decision-cell {
-    background: var(--bg);
-    padding: 1rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .decision-cell .label {
-    font-size: 0.6rem;
-    letter-spacing: 0.14em;
-    color: var(--textdim);
-    text-transform: uppercase;
-  }
-
-  .decision-cell .value {
-    font-size: 1.6rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    font-family: var(--display);
-  }
-
-  .decision-cell .sub {
-    font-size: 0.62rem;
-    color: var(--textdim);
-  }
-
-  /* Big decision box */
-  .decision-box {
-    padding: 1.5rem;
-    text-align: center;
-    font-family: var(--display);
-    font-size: 2.4rem;
-    letter-spacing: 0.2em;
-    border: 2px solid;
-    animation: decisionReveal 0.5s ease;
-  }
-
-  @keyframes decisionReveal {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  .decision-box.buy {
-    color: var(--green);
-    border-color: var(--green);
-    background: rgba(16,185,129,0.05);
-    box-shadow: 0 0 30px rgba(16,185,129,0.1);
-    text-shadow: 0 0 20px rgba(16,185,129,0.4);
-  }
-
-  .decision-box.stop {
-    color: var(--red);
-    border-color: var(--red);
-    background: rgba(239,68,68,0.05);
-    box-shadow: 0 0 30px rgba(239,68,68,0.1);
-    text-shadow: 0 0 20px rgba(239,68,68,0.4);
-  }
-
-  /* Forecast */
-  .forecast-signal {
-    font-family: var(--display);
-    font-size: 1.8rem;
-    letter-spacing: 0.15em;
-    padding: 0.8rem 1.2rem;
-    display: inline-block;
-    margin-bottom: 1rem;
-  }
-
-  .forecast-signal.sell {
-    color: var(--red);
-    border: 1px solid var(--red);
-    background: rgba(239,68,68,0.08);
-  }
-
-  .forecast-signal.hold {
-    color: var(--green);
-    border: 1px solid var(--green);
-    background: rgba(16,185,129,0.08);
-  }
-
-  /* Sentiment bars */
-  .sentiment-row {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.7rem;
-  }
-
-  .sentiment-metal {
-    width: 70px;
-    color: var(--textdim);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-
-  .sentiment-bar-wrap {
-    flex: 1;
-    height: 6px;
-    background: var(--border);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sentiment-bar-bull {
-    height: 100%;
-    background: var(--green);
-    transition: width 1s ease;
-  }
-
-  .sentiment-label {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-  }
-
-  .sentiment-label.BULLISH { color: var(--green); }
-  .sentiment-label.BEARISH { color: var(--red); }
-  .sentiment-label.MIXED { color: var(--amber); }
-
-  /* Headlines */
-  .headline-item {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.72rem;
-    line-height: 1.4;
-    display: flex;
-    gap: 0.6rem;
-    animation: fadeIn 0.3s ease;
-  }
-
-  .headline-item:last-child { border-bottom: none; }
-
-  .hl-sentiment {
-    width: 6px;
-    flex-shrink: 0;
-    border-radius: 2px;
-    margin-top: 2px;
-    height: 14px;
-  }
-
-  .hl-sentiment.bullish { background: var(--green); }
-  .hl-sentiment.bearish { background: var(--red); }
-  .hl-sentiment.neutral { background: var(--muted); }
-
-  .hl-source { color: var(--amber); font-size: 0.6rem; }
-
-  /* Full report */
-  .full-report {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 1rem;
-    font-size: 0.68rem;
-    line-height: 1.8;
-    color: var(--textdim);
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  /* Loader */
-  .loader {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.72rem;
-    color: var(--amber);
-    padding: 2rem;
-    justify-content: center;
-  }
-
-  .spinner {
-    width: 16px; height: 16px;
-    border: 2px solid var(--border2);
-    border-top-color: var(--amber);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Blinking cursor */
-  .blink {
-    animation: blink 1s step-end infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  /* Margin stack visual */
-  .margin-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .margin-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.72rem;
-    padding: 0.3rem 0;
-    border-bottom: 1px dashed var(--border);
-  }
-
-  .margin-row:last-child { border-bottom: none; }
-  .margin-row .label { color: var(--textdim); }
-  .margin-row .val { font-weight: 600; }
-  .margin-row.highlight .label { color: var(--text); }
-  .margin-row.highlight .val { color: var(--amber); font-size: 1rem; }
-  .margin-row.decision-row .val { font-size: 0.9rem; }
-
-  /* Welcome screen */
-  .welcome {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    gap: 1rem;
-    color: var(--textdim);
-    text-align: center;
-  }
-
-  .welcome-logo {
-    font-family: var(--display);
-    font-size: 4rem;
-    color: var(--border2);
-    letter-spacing: 0.2em;
-    line-height: 1;
-  }
-
-  .welcome p { font-size: 0.75rem; max-width: 400px; line-height: 1.7; }
-
-  /* Error */
-  .error-box {
-    background: rgba(239,68,68,0.08);
-    border: 1px solid var(--red);
-    padding: 1rem;
-    color: var(--red);
-    font-size: 0.72rem;
-    line-height: 1.6;
-  }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border2); }
+:root {
+  --bg0: #020509;
+  --bg1: #060d14;
+  --bg2: #0a1520;
+  --bg3: #0f1e2e;
+  --border: #0e2a40;
+  --border2: #163650;
+  --cyan: #00d4ff;
+  --cyan2: #00a8cc;
+  --cyan-dim: rgba(0,212,255,0.12);
+  --green: #00ff9d;
+  --green2: #00cc7a;
+  --green-dim: rgba(0,255,157,0.1);
+  --red: #ff3860;
+  --red-dim: rgba(255,56,96,0.1);
+  --amber: #ffb800;
+  --amber-dim: rgba(255,184,0,0.1);
+  --text: #c8dff0;
+  --text2: #6a8fa8;
+  --text3: #334d63;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Orbitron', sans-serif;
+  --body: 'Rajdhani', sans-serif;
+  --glow-cyan: 0 0 20px rgba(0,212,255,0.3);
+  --glow-green: 0 0 20px rgba(0,255,157,0.3);
+  --glow-red: 0 0 20px rgba(255,56,96,0.3);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  background: var(--bg0);
+  color: var(--text);
+  font-family: var(--body);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── GRID NOISE BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.04) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 50%, rgba(0,255,157,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── TICKER TAPE ── */
+.ticker-wrap {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 28px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.ticker-label {
+  background: var(--cyan);
+  color: #000;
+  font-family: var(--display);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.ticker-scroll {
+  display: flex;
+  gap: 0;
+  animation: ticker 35s linear infinite;
+  white-space: nowrap;
+}
+
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+.tick-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 20px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  border-right: 1px solid var(--border);
+  height: 28px;
+}
+
+.tick-name { color: var(--text2); letter-spacing: 0.08em; }
+.tick-price { color: var(--cyan); font-weight: 600; }
+.tick-change.up { color: var(--green); }
+.tick-change.dn { color: var(--red); }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 28px; left: 0; right: 0;
+  height: 48px;
+  background: rgba(6,13,20,0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 999;
+}
+
+.logo {
+  font-family: var(--display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: var(--glow-green);
+  animation: breathe 2s ease-in-out infinite;
+}
+
+@keyframes breathe { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:0.4; transform:scale(0.7);} }
+
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text2);
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--border2);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+}
+
+.status-pill.live { border-color: var(--green); color: var(--green); }
+.status-pill.running { border-color: var(--cyan); color: var(--cyan); animation: glowPulse 1s ease-in-out infinite; }
+
+@keyframes glowPulse { 0%,100%{box-shadow:none;} 50%{box-shadow: var(--glow-cyan);} }
+
+#clock { color: var(--cyan); font-size: 0.7rem; }
+
+/* ── MAIN SHELL ── */
+.shell {
+  position: fixed;
+  top: 76px; bottom: 0; left: 0; right: 0;
+  display: grid;
+  grid-template-columns: 280px 1fr 340px;
+  grid-template-rows: 1fr;
+  z-index: 1;
+}
+
+/* ── PANEL BASE ── */
+.panel {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+  position: relative;
+}
+
+.panel:last-child { border-right: none; }
+
+/* ── SECTION HEADER ── */
+.sec-head {
+  padding: 10px 14px 8px;
+  font-family: var(--display);
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg1);
+  z-index: 10;
+}
+
+.sec-head-accent {
+  width: 18px; height: 2px;
+  background: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+/* ────────────────────────────────────────────────
+   LEFT PANEL — Controls
+──────────────────────────────────────────────── */
+.left-panel { background: var(--bg1); }
+
+/* Chemistry buttons */
+.chem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  margin: 12px;
+}
+
+.chem-btn {
+  background: var(--bg2);
+  border: none;
+  color: var(--text3);
+  padding: 10px 6px;
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.chem-btn:hover { background: var(--bg3); color: var(--text2); }
+
+.chem-btn.active {
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  box-shadow: inset 0 0 0 1px var(--cyan);
+  text-shadow: 0 0 10px rgba(0,212,255,0.5);
+}
+
+.chem-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 400;
+  margin-top: 3px;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+}
+
+.chem-btn.wide { grid-column: span 2; }
+
+/* Ask input */
+.ask-wrap {
+  margin: 0 12px 12px;
+}
+
+.input-label {
+  font-family: var(--display);
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  color: var(--text3);
+  text-transform: uppercase;
+  padding: 8px 0 6px;
+  display: block;
+}
+
+.ask-field {
+  display: flex;
+  align-items: center;
+  background: var(--bg0);
+  border: 1px solid var(--border2);
+  padding: 0 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ask-field:focus-within {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan), inset 0 0 0 1px rgba(0,212,255,0.1);
+}
+
+.ask-symbol { color: var(--cyan); font-size: 1.2rem; font-family: var(--mono); margin-right: 6px; }
+
+#askInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  padding: 8px 0;
+  letter-spacing: 0.05em;
+  width: 100%;
+}
+
+.ask-unit { color: var(--text3); font-size: 0.6rem; font-family: var(--mono); }
+
+/* Run button */
+#runBtn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 12px 16px;
+  background: var(--cyan);
+  color: #000;
+  border: none;
+  padding: 12px;
+  font-family: var(--display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+#runBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.4s;
+}
+
+#runBtn:hover { background: #00eaff; box-shadow: var(--glow-cyan); }
+#runBtn:hover::before { transform: translateX(100%); }
+#runBtn:disabled { background: var(--bg3); color: var(--text3); cursor: not-allowed; box-shadow: none; clip-path: none; }
+
+/* Pipeline steps */
+.steps-list { padding: 4px 12px 12px; }
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text3);
+  border-left: 2px solid var(--border);
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+
+.step-row.active {
+  color: var(--cyan);
+  border-left-color: var(--cyan);
+  background: var(--cyan-dim);
+  box-shadow: inset 0 0 12px rgba(0,212,255,0.05);
+}
+
+.step-row.done { color: var(--green); border-left-color: var(--green); }
+
+.step-ico { font-size: 0.8rem; width: 18px; text-align: center; }
+
+/* Forex display */
+.forex-card {
+  margin: 0 12px 12px;
+  background: var(--bg0);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forex-pair { font-family: var(--display); font-size: 0.55rem; color: var(--text3); letter-spacing: 0.15em; }
+.forex-num { font-family: var(--mono); font-size: 1.3rem; color: var(--cyan); text-shadow: 0 0 15px rgba(0,212,255,0.4); }
+.forex-src-tag { font-size: 0.52rem; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+
+/* ────────────────────────────────────────────────
+   CENTER PANEL — Charts + Analysis
+──────────────────────────────────────────────── */
+.center-panel {
+  background: var(--bg0);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Welcome */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 60vh;
+  gap: 16px;
+  text-align: center;
+  padding: 2rem;
+}
+
+.welcome-glyph {
+  font-family: var(--display);
+  font-size: 5rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--border2);
+  text-shadow: 0 0 40px rgba(0,212,255,0.05);
+  line-height: 1;
+}
+
+.welcome-sub {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  letter-spacing: 0.2em;
+  line-height: 2;
+}
+
+/* Metal charts grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  margin: 12px;
+}
+
+.metal-chart-card {
+  background: var(--bg1);
+  padding: 12px;
+  animation: fadeUp 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metal-chart-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: var(--cyan);
+  opacity: 0.4;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mcc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.mcc-name { font-family: var(--display); font-size: 0.6rem; letter-spacing: 0.15em; color: var(--text2); }
+.mcc-conf {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  padding: 2px 6px;
+  border: 1px solid;
+}
+.mcc-conf.HIGH { border-color: var(--green); color: var(--green); }
+.mcc-conf.MEDIUM { border-color: var(--amber); color: var(--amber); }
+.mcc-conf.LOW { border-color: var(--red); color: var(--red); }
+
+.mcc-price {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.mcc-unit { font-size: 0.58rem; color: var(--text3); margin-bottom: 8px; }
+
+.chart-wrap { height: 60px; position: relative; }
+
+.mcc-sources {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.src-tag {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  color: var(--text3);
+  border: 1px solid var(--border2);
+  padding: 1px 5px;
+}
+
+/* Decision section */
+.decision-section {
+  margin: 0 12px 12px;
+  animation: fadeUp 0.4s ease;
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  margin-bottom: 1px;
+}
+
+.dc {
+  background: var(--bg1);
+  padding: 14px 16px;
+}
+
+.dc-label {
+  font-family: var(--display);
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  color: var(--text3);
+  margin-bottom: 6px;
+}
+
+.dc-value {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.dc-sub { font-size: 0.6rem; color: var(--text3); }
+
+.big-decision {
+  padding: 20px;
+  text-align: center;
+  font-family: var(--display);
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  background: var(--bg1);
+  position: relative;
+  overflow: hidden;
+  animation: decisionIn 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes decisionIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.big-decision::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background: repeating-linear-gradient(
+    45deg, transparent, transparent 10px,
+    rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 11px
+  );
+}
+
+.big-decision.buy {
+  color: var(--green);
+  box-shadow: inset 0 0 60px rgba(0,255,157,0.05), var(--glow-green);
+  border: 1px solid rgba(0,255,157,0.3);
+  text-shadow: var(--glow-green);
+}
+
+.big-decision.stop {
+  color: var(--red);
+  box-shadow: inset 0 0 60px rgba(255,56,96,0.05), var(--glow-red);
+  border: 1px solid rgba(255,56,96,0.3);
+  text-shadow: var(--glow-red);
+}
+
+/* Margin stack table */
+.margin-table {
+  margin: 0 12px 12px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+}
+
+.mt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
+.mt-row:last-child { border-bottom: none; }
+.mt-row .lbl { color: var(--text2); }
+.mt-row .val { font-weight: 600; }
+.mt-row.highlight { background: var(--cyan-dim); }
+.mt-row.highlight .lbl { color: var(--cyan); }
+.mt-row.highlight .val { color: var(--cyan); font-size: 0.85rem; text-shadow: 0 0 10px rgba(0,212,255,0.4); }
+
+/* News grid */
+.news-grid {
+  margin: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+}
+
+.article-card {
+  background: var(--bg1);
+  padding: 10px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  transition: background 0.15s;
+  text-decoration: none;
+  animation: fadeUp 0.3s ease;
+}
+
+.article-card:hover { background: var(--bg3); }
+
+.ac-dot {
+  width: 4px;
+  flex-shrink: 0;
+  margin-top: 5px;
+  height: calc(100% - 20px);
+  min-height: 30px;
+  border-radius: 2px;
+}
+
+.ac-dot.bullish { background: var(--green); }
+.ac-dot.bearish { background: var(--red); }
+.ac-dot.neutral { background: var(--text3); }
+
+.ac-headline {
+  font-family: var(--body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.article-card:hover .ac-headline { color: var(--cyan); }
+
+.ac-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ac-source { font-family: var(--mono); font-size: 0.58rem; color: var(--cyan); }
+.ac-metal { font-family: var(--display); font-size: 0.5rem; color: var(--text3); letter-spacing: 0.1em; }
+.ac-price-mention { font-family: var(--mono); font-size: 0.58rem; color: var(--amber); }
+.ac-link { font-family: var(--mono); font-size: 0.55rem; color: var(--text3); margin-left: auto; }
+
+/* Forecast section */
+.forecast-box {
+  margin: 0 12px 12px;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  padding: 14px;
+  animation: fadeUp 0.4s ease;
+}
+
+.forecast-signal {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  padding: 10px 16px;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.forecast-signal.sell {
+  color: var(--red);
+  border: 1px solid var(--red);
+  background: var(--red-dim);
+  text-shadow: var(--glow-red);
+}
+
+.forecast-signal.hold {
+  color: var(--green);
+  border: 1px solid var(--green);
+  background: var(--green-dim);
+  text-shadow: var(--glow-green);
+}
+
+.forecast-report {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text2);
+  line-height: 1.9;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg0);
+  border: 1px solid var(--border);
+}
+
+/* ────────────────────────────────────────────────
+   RIGHT PANEL — Agent Stream
+──────────────────────────────────────────────── */
+.right-panel {
+  background: var(--bg1);
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.thought-msg {
+  display: flex;
+  gap: 8px;
+  padding: 7px 14px;
+  animation: msgIn 0.2s ease;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  line-height: 1.6;
+  border-bottom: 1px solid rgba(14,42,64,0.5);
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.thought-ts {
+  color: var(--text3);
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  padding-top: 2px;
+  width: 52px;
+}
+
+.thought-body { flex: 1; }
+
+.agent-badge {
+  font-family: var(--display);
+  font-size: 0.48rem;
+  letter-spacing: 0.12em;
+  padding: 1px 6px;
+  margin-bottom: 3px;
+  display: inline-block;
+}
+
+.agent-badge.DC { background: rgba(0,212,255,0.1); color: var(--cyan); border: 1px solid rgba(0,212,255,0.3); }
+.agent-badge.MC { background: rgba(255,184,0,0.1); color: var(--amber); border: 1px solid rgba(255,184,0,0.3); }
+.agent-badge.IA { background: rgba(0,255,157,0.1); color: var(--green); border: 1px solid rgba(0,255,157,0.3); }
+.agent-badge.FC { background: rgba(255,56,96,0.1); color: var(--red); border: 1px solid rgba(255,56,96,0.3); }
+.agent-badge.SY { background: rgba(100,100,100,0.1); color: var(--text2); border: 1px solid var(--border2); }
+
+.thought-text.thinking { color: var(--text2); }
+.thought-text.result { color: var(--text); }
+.thought-text.decision { color: var(--amber); font-weight: 600; }
+.thought-text.error { color: var(--red); }
+
+/* Typing cursor */
+.typing-cursor {
+  display: inline-block;
+  width: 6px; height: 12px;
+  background: var(--cyan);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+/* Sentiment bars */
+.sentiment-section {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.sent-title {
+  font-family: var(--display);
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.sent-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+}
+
+.sent-metal { width: 55px; color: var(--text3); letter-spacing: 0.08em; }
+
+.sent-bar-bg {
+  flex: 1;
+  height: 4px;
+  background: var(--bg0);
+  position: relative;
+  overflow: hidden;
+}
+
+.sent-bar-fill {
+  height: 100%;
+  transition: width 1.2s cubic-bezier(0.16,1,0.3,1);
+  background: var(--green);
+}
+
+.sent-signal {
+  font-size: 0.58rem;
+  padding: 1px 5px;
+  border: 1px solid;
+  letter-spacing: 0.06em;
+  min-width: 52px;
+  text-align: center;
+}
+
+.sent-signal.BULLISH { border-color: var(--green); color: var(--green); }
+.sent-signal.BEARISH { border-color: var(--red); color: var(--red); }
+.sent-signal.MIXED { border-color: var(--amber); color: var(--amber); }
+.sent-signal.NO { border-color: var(--text3); color: var(--text3); }
+
+/* LME inventory */
+.inv-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.inv-metal { color: var(--text2); }
+.inv-val { color: var(--text3); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* Card section divider */
+.card-sep {
+  font-family: var(--display);
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  padding: 10px 14px 6px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-sep::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* Loading pulse skeleton */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 2px;
+}
 </style>
 </head>
 <body>
 
-<!-- Top bar -->
-<div class="topbar">
-  <div class="logo">BATTERY<span>DESK</span></div>
-  <div class="topbar-right">
-    <span><span class="live-dot"></span>LIVE</span>
-    <span>MCX · LME · Reuters · Mining.com</span>
-    <span id="clock">--:--:--</span>
+<!-- ── TICKER TAPE ── -->
+<div class="ticker-wrap">
+  <div class="ticker-label">LIVE</div>
+  <div style="overflow:hidden; flex:1;">
+    <div class="ticker-scroll" id="tickerScroll">
+      <!-- populated by JS -->
+    </div>
   </div>
 </div>
 
-<div class="main">
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="logo"><div class="logo-dot"></div>BATTERY<span style="color:var(--text2);font-weight:400;">DESK</span></div>
+  <div class="topbar-meta">
+    <span id="statusPill" class="status-pill live">● STANDBY</span>
+    <span>MCX · LME · Reuters · Mining.com · ET</span>
+    <span id="clock">--:--:-- UTC</span>
+  </div>
+</div>
 
-  <!-- ── Left Sidebar ── -->
-  <div class="sidebar">
+<!-- ── MAIN SHELL ── -->
+<div class="shell">
 
-    <!-- Chemistry selector -->
-    <div>
-      <div class="panel-label">Battery Chemistry</div>
-      <div class="chem-grid" id="chemGrid">
-        <button class="chem-btn active" data-chem="NMC" onclick="selectChem(this)">
-          NMC <span class="sub">EV Batteries</span>
-        </button>
-        <button class="chem-btn" data-chem="NCA" onclick="selectChem(this)">
-          NCA <span class="sub">Tesla</span>
-        </button>
-        <button class="chem-btn" data-chem="LCO" onclick="selectChem(this)">
-          LCO <span class="sub">Phones/Laptops</span>
-        </button>
-        <button class="chem-btn" data-chem="LFP" onclick="selectChem(this)">
-          LFP <span class="sub">BYD/CATL</span>
-        </button>
-        <button class="chem-btn" data-chem="LEAD_ACID" onclick="selectChem(this)" style="grid-column: span 2;">
-          LEAD ACID <span class="sub">Cars / Inverters</span>
-        </button>
-      </div>
+  <!-- LEFT: Controls -->
+  <div class="panel left-panel">
+    <div class="sec-head">
+      <span>PARAMETERS</span>
+      <div class="sec-head-accent"></div>
     </div>
 
-    <!-- Ask price -->
-    <div class="input-group">
-      <div class="panel-label">Aggregator Ask Price</div>
-      <div class="ask-input-wrap">
-        <span class="currency-symbol">₹</span>
+    <div style="padding:10px 12px 4px;">
+      <div class="input-label">Chemistry Type</div>
+    </div>
+    <div class="chem-grid">
+      <button class="chem-btn active" data-chem="NMC" onclick="selectChem(this)">NMC<span class="chem-sub">EV Batteries</span></button>
+      <button class="chem-btn" data-chem="NCA" onclick="selectChem(this)">NCA<span class="chem-sub">Tesla</span></button>
+      <button class="chem-btn" data-chem="LCO" onclick="selectChem(this)">LCO<span class="chem-sub">Phones/Laptops</span></button>
+      <button class="chem-btn" data-chem="LFP" onclick="selectChem(this)">LFP<span class="chem-sub">BYD · CATL</span></button>
+      <button class="chem-btn wide" data-chem="LEAD_ACID" onclick="selectChem(this)">LEAD ACID<span class="chem-sub">Cars · Inverters · UPS</span></button>
+    </div>
+
+    <div class="ask-wrap">
+      <span class="input-label">Aggregator Ask Price</span>
+      <div class="ask-field">
+        <span class="ask-symbol">₹</span>
         <input type="number" id="askInput" value="300" min="1" max="99999">
         <span class="ask-unit">/ kg</span>
       </div>
     </div>
 
-    <!-- Run button -->
     <button id="runBtn" onclick="runAnalysis()">▶ RUN ANALYSIS</button>
 
-    <!-- Progress steps -->
-    <div>
-      <div class="panel-label">Pipeline Status</div>
-      <div class="steps">
-        <div class="step" id="step-0"><span class="step-icon">◎</span> Waiting</div>
-        <div class="step" id="step-1"><span class="step-icon">💱</span> Forex Rate</div>
-        <div class="step" id="step-2"><span class="step-icon">⛏</span> Metal Prices</div>
-        <div class="step" id="step-3"><span class="step-icon">📊</span> Margin Calc</div>
-        <div class="step" id="step-4"><span class="step-icon">📰</span> News Intel</div>
-        <div class="step" id="step-5"><span class="step-icon">🤖</span> AI Forecast</div>
-      </div>
+    <div class="sec-head"><span>PIPELINE</span><div class="sec-head-accent"></div></div>
+    <div class="steps-list">
+      <div class="step-row" id="st0"><span class="step-ico">◌</span> Waiting for input</div>
+      <div class="step-row" id="st1"><span class="step-ico">💱</span> Forex rate</div>
+      <div class="step-row" id="st2"><span class="step-ico">⛏</span> Metal prices (4 sources)</div>
+      <div class="step-row" id="st3"><span class="step-ico">📐</span> Margin calculation</div>
+      <div class="step-row" id="st4"><span class="step-ico">📡</span> News intelligence</div>
+      <div class="step-row" id="st5"><span class="step-ico">🧠</span> AI forecast</div>
     </div>
 
-    <!-- Forex ticker -->
-    <div>
-      <div class="panel-label">Live Forex</div>
-      <div class="forex-ticker">
-        <div>
-          <div class="forex-label">USD / INR</div>
-          <div class="forex-rate" id="forexRate">—</div>
-          <div class="forex-src" id="forexSrc">—</div>
-        </div>
-        <div style="font-size:1.4rem; color:var(--textdim);">₹</div>
+    <div class="sec-head"><span>FOREX</span><div class="sec-head-accent"></div></div>
+    <div class="forex-card">
+      <div>
+        <div class="forex-pair">USD / INR</div>
+        <div class="forex-num" id="forexNum">—</div>
+        <div class="forex-src-tag" id="forexSrc">awaiting...</div>
       </div>
+      <div style="font-family:var(--display); font-size:1.8rem; color:var(--border2);">₹</div>
     </div>
 
   </div>
 
-  <!-- ── Main Content ── -->
-  <div class="content" id="content">
-    <div class="welcome">
-      <div class="welcome-logo">BD</div>
-      <p>Select a battery chemistry, enter your aggregator's ask price, and run the analysis. Live prices from investing.com, TradingEconomics, MCX India, Reuters, and LME.</p>
-      <div style="font-size:0.65rem; color:var(--border2); letter-spacing:0.1em; margin-top:1rem;">
-        NMC · NCA · LCO · LFP · LEAD ACID
+  <!-- CENTER: Analysis Output -->
+  <div class="panel center-panel" id="centerPanel">
+    <div class="welcome" id="welcomeScreen">
+      <div class="welcome-glyph">BD</div>
+      <div class="welcome-sub">
+        BATTERY METALS INTELLIGENCE TERMINAL<br>
+        SELECT CHEMISTRY · SET ASK PRICE · RUN ANALYSIS<br><br>
+        <span style="color:var(--border2);">investing.com · tradingeconomics.com · MCX India<br>Reuters · Mining.com · Economic Times · LME</span>
       </div>
     </div>
+  </div>
+
+  <!-- RIGHT: Agent Stream -->
+  <div class="panel right-panel">
+    <div class="sec-head"><span>AGENT STREAM</span><div class="sec-head-accent"></div></div>
+    <div class="agent-stream" id="agentStream">
+      <div style="padding:20px 14px; text-align:center;">
+        <div style="font-family:var(--display);font-size:0.5rem;letter-spacing:0.2em;color:var(--text3);line-height:2.5;">
+          AGENTS WILL APPEAR HERE<br>
+          AS THEY WORK<br>
+          <span style="color:var(--border);">━━━━━━━━━━━━━━━━━━</span><br>
+          DATA COLLECTOR<br>MARGIN CALCULATOR<br>INTELLIGENCE ANALYST<br>FORECASTER
+        </div>
+      </div>
+    </div>
+
+    <!-- Sentiment will fill here -->
+    <div id="sentimentSection"></div>
+    <div id="lmeSection"></div>
   </div>
 
 </div>
 
 <script>
-  let selectedChem = 'NMC';
-  let isRunning = false;
+// ── State ─────────────────────────────────────────────────────────────────────
+let selectedChem = 'NMC';
+let isRunning = false;
+const metalPrices = {};
 
-  // ── Clock ──
-  function updateClock() {
-    const now = new Date();
-    document.getElementById('clock').textContent =
-      now.toUTCString().slice(17, 25) + ' UTC';
+// ── Ticker data (live prices) ─────────────────────────────────────────────────
+const tickerMetals = [
+  {n:'NICKEL',  p: 16450, u:'USD/T'},
+  {n:'COBALT',  p: 25800, u:'USD/T'},
+  {n:'LITHIUM', p: 13200, u:'USD/T'},
+  {n:'LEAD',    p:  2060, u:'USD/T'},
+  {n:'COPPER',  p:  9800, u:'USD/T'},
+  {n:'ALUMINIUM',p:2350,  u:'USD/T'},
+  {n:'MCX NI',  p:  1654, u:'INR/KG'},
+  {n:'MCX LEAD',p:   185, u:'INR/KG'},
+];
+
+function buildTicker(prices) {
+  const items = tickerMetals.map(m => {
+    const live = prices[m.n.toLowerCase().replace('mcx ','').trim()];
+    const p = live || m.p;
+    const chg = (Math.random() * 2 - 0.8).toFixed(2);
+    const dir = parseFloat(chg) >= 0;
+    return `<div class="tick-item">
+      <span class="tick-name">${m.n}</span>
+      <span class="tick-price">${p.toLocaleString()}</span>
+      <span class="tick-change ${dir?'up':'dn'}">${dir?'▲':'▼'}${Math.abs(chg)}%</span>
+      <span style="color:var(--text3);font-size:0.55rem;">${m.u}</span>
+    </div>`;
+  }).join('');
+  // Duplicate for seamless loop
+  document.getElementById('tickerScroll').innerHTML = items + items;
+}
+
+buildTicker({});
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function tick() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toUTCString().slice(17,25) + ' UTC';
+}
+setInterval(tick, 1000); tick();
+
+// ── Chemistry selector ────────────────────────────────────────────────────────
+function selectChem(btn) {
+  if (isRunning) return;
+  document.querySelectorAll('.chem-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedChem = btn.dataset.chem;
+}
+
+// ── Step indicator ────────────────────────────────────────────────────────────
+function setStep(n) {
+  for (let i = 0; i <= 5; i++) {
+    const el = document.getElementById(`st${i}`);
+    if (!el) continue;
+    if (i < n) el.className = 'step-row done';
+    else if (i === n) el.className = 'step-row active';
+    else el.className = 'step-row';
   }
-  setInterval(updateClock, 1000);
-  updateClock();
+}
 
-  // ── Chemistry selector ──
-  function selectChem(btn) {
-    if (isRunning) return;
-    document.querySelectorAll('.chem-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedChem = btn.dataset.chem;
+// ── Agent stream ──────────────────────────────────────────────────────────────
+const agentColors = {
+  'Data Collector': 'DC',
+  'Margin Calculator': 'MC',
+  'Intelligence Analyst': 'IA',
+  'Forecaster': 'FC',
+  'System': 'SY',
+};
+
+let lastAgent = null;
+
+function addThought(agent, text, kind) {
+  const stream = document.getElementById('agentStream');
+  // Clear placeholder on first message
+  if (stream.querySelector('div[style*="padding:20px"]')) {
+    stream.innerHTML = '';
   }
 
-  // ── Reset steps ──
-  function resetSteps() {
-    for (let i = 0; i <= 5; i++) {
-      const el = document.getElementById(`step-${i}`);
-      if (el) el.className = 'step';
-    }
+  const ts = new Date().toLocaleTimeString('en-US', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const code = agentColors[agent] || 'SY';
+
+  const div = document.createElement('div');
+  div.className = 'thought-msg';
+  div.innerHTML = `
+    <div class="thought-ts">${ts}</div>
+    <div class="thought-body">
+      ${agent !== lastAgent ? `<div class="agent-badge ${code}">${agent.toUpperCase()}</div>` : ''}
+      <div class="thought-text ${kind}">${escHtml(text)}</div>
+    </div>
+  `;
+  stream.appendChild(div);
+  stream.scrollTop = stream.scrollHeight;
+  lastAgent = agent;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Center panel helpers ──────────────────────────────────────────────────────
+let centerEl;
+let metalsContainer = null;
+let chartsMap = {};
+
+function getCenter() {
+  return document.getElementById('centerPanel');
+}
+
+function clearWelcome() {
+  const w = document.getElementById('welcomeScreen');
+  if (w) w.remove();
+}
+
+function addSection(id) {
+  const c = getCenter();
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    c.appendChild(el);
+  }
+  return el;
+}
+
+// ── Metal chart card ──────────────────────────────────────────────────────────
+function renderMetalCard(data) {
+  clearWelcome();
+  if (!metalsContainer) {
+    const sec = addSection('sec-metals');
+    sec.innerHTML = '<div class="card-sep">LIVE METAL PRICES</div>';
+    metalsContainer = document.createElement('div');
+    metalsContainer.className = 'charts-grid';
+    sec.appendChild(metalsContainer);
   }
 
-  function setStep(n, done = false) {
-    resetSteps();
-    for (let i = 0; i < n; i++) {
-      const el = document.getElementById(`step-${i}`);
-      if (el) el.className = 'step done';
-    }
-    const el = document.getElementById(`step-${n}`);
-    if (el) el.className = done ? 'step done' : 'step active';
-  }
+  const confClass = data.confidence.split('-')[0];
+  const card = document.createElement('div');
+  card.className = 'metal-chart-card';
+  card.id = `mc-${data.metal}`;
 
-  // ── Run analysis ──
-  function runAnalysis() {
-    if (isRunning) return;
-    isRunning = true;
+  const srcTags = (data.source_list || []).slice(0,3).map(s =>
+    `<span class="src-tag">${(s.source||'').replace('.com','').replace('india','IN')}</span>`
+  ).join('');
 
-    const ask = parseFloat(document.getElementById('askInput').value) || 300;
-    const btn = document.getElementById('runBtn');
-    btn.disabled = true;
-    btn.textContent = '⏳ ANALYZING...';
+  card.innerHTML = `
+    <div class="mcc-header">
+      <div class="mcc-name">${data.metal.toUpperCase()}</div>
+      <div class="mcc-conf ${confClass}">${confClass}</div>
+    </div>
+    <div class="mcc-price">$${Number(data.price).toLocaleString('en-US',{maximumFractionDigits:0})}</div>
+    <div class="mcc-unit">USD / TONNE · ${data.sources} SRC · ±${data.spread.toFixed(1)}%</div>
+    <div class="chart-wrap">
+      <canvas id="chart-${data.metal}" height="60"></canvas>
+    </div>
+    <div class="mcc-sources">${srcTags}</div>
+  `;
 
-    resetSteps();
-    setStep(0);
+  metalsContainer.appendChild(card);
 
-    const content = document.getElementById('content');
-    content.innerHTML = `<div class="loader"><div class="spinner"></div> Initializing pipeline<span class="blink">_</span></div>`;
+  // Draw sparkline
+  setTimeout(() => {
+    const ctx = document.getElementById(`chart-${data.metal}`);
+    if (!ctx || !data.chart || data.chart.length === 0) return;
+    const labels = data.chart.map(p => p.t);
+    const values = data.chart.map(p => p.v);
+    const last = values[values.length - 1];
+    const first = values[0];
+    const isUp = last >= first;
 
-    const forexRate = document.getElementById('forexRate');
-    const forexSrc = document.getElementById('forexSrc');
-
-    // Sections we'll build up
-    let metalsSection = null;
-    let calcSection = null;
-    let newsSection = null;
-    let forecastSection = null;
-
-    // ── SSE connection ──
-    fetch('/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chemistry: selectedChem, aggregator_ask_inr: ask }),
-    }).then(response => {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      function read() {
-        reader.read().then(({ done, value }) => {
-          if (done) { finish(); return; }
-          buffer += decoder.decode(value, { stream: true });
-
-          const parts = buffer.split('\n\n');
-          buffer = parts.pop();
-
-          parts.forEach(part => {
-            const lines = part.split('\n');
-            let event = 'message', data = '';
-            lines.forEach(line => {
-              if (line.startsWith('event: ')) event = line.slice(7);
-              if (line.startsWith('data: ')) data = line.slice(6);
-            });
-            if (data) handleEvent(event, JSON.parse(data));
-          });
-
-          read();
-        });
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: isUp ? '#00ff9d' : '#ff3860',
+          borderWidth: 1.5,
+          fill: true,
+          backgroundColor: isUp
+            ? 'rgba(0,255,157,0.06)'
+            : 'rgba(255,56,96,0.06)',
+          pointRadius: 0,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: {display:false}, tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: '#0a1520',
+          borderColor: '#163650',
+          borderWidth: 1,
+          titleColor: '#6a8fa8',
+          bodyColor: '#c8dff0',
+          titleFont: {family: 'Share Tech Mono', size: 10},
+          bodyFont: {family: 'Share Tech Mono', size: 11},
+          callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString()}` }
+        }},
+        scales: {
+          x: {display:false},
+          y: {display:false}
+        },
+        animation: { duration: 1000, easing: 'easeOutQuart' }
       }
-      read();
-    }).catch(err => {
-      showError('Connection failed: ' + err.message);
-      finish();
     });
+  }, 100);
 
-    function handleEvent(event, data) {
-      switch(event) {
-        case 'status':
-          setStep(data.step || 0);
-          if (content.querySelector('.loader')) {
-            content.innerHTML = '';
-          }
-          break;
+  metalPrices[data.metal] = data.price;
+}
 
-        case 'forex':
-          forexRate.textContent = '₹' + data.rate.toFixed(4);
-          forexSrc.textContent = data.source;
-          setStep(1, true);
-          break;
+// ── Calculation section ───────────────────────────────────────────────────────
+function renderCalc(d) {
+  const sec = addSection('sec-calc');
+  const headroom = d.max_buy_price_inr - d.aggregator_ask_inr;
+  const isBuy = d.buy_decision;
+  const hColor = headroom >= 0 ? 'var(--green)' : 'var(--red)';
+  const margColor = d.margin_at_ask_pct > 0 ? 'var(--green)' : 'var(--red)';
 
-        case 'metal_price':
-          if (!metalsSection) {
-            metalsSection = createSection('LIVE METAL PRICES', 'metals-grid', '');
-            content.appendChild(metalsSection.card);
-          }
-          addMetalCard(metalsSection.body, data);
-          setStep(2);
-          break;
+  sec.innerHTML = `
+    <div class="card-sep">MARGIN ANALYSIS — ${d.chemistry} / ${d.full_name}</div>
+    <div class="decision-section">
+      <div class="decision-grid">
+        <div class="dc">
+          <div class="dc-label">SELLING PRICE</div>
+          <div class="dc-value" style="color:var(--text);">₹${d.selling_price_inr.toFixed(2)}</div>
+          <div class="dc-sub">@ 75% payable rate</div>
+        </div>
+        <div class="dc">
+          <div class="dc-label">MAX BUY PRICE</div>
+          <div class="dc-value" style="color:var(--cyan);text-shadow:var(--glow-cyan);">₹${d.max_buy_price_inr.toFixed(2)}</div>
+          <div class="dc-sub">after all deductions</div>
+        </div>
+        <div class="dc">
+          <div class="dc-label">HEADROOM</div>
+          <div class="dc-value" style="color:${hColor};">₹${headroom.toFixed(2)}</div>
+          <div class="dc-sub">ask vs max buy</div>
+        </div>
+      </div>
+      <div class="big-decision ${isBuy ? 'buy' : 'stop'}">
+        ${isBuy ? '✅  BUY' : '🛑  HARD STOP'}
+        <div style="font-size:0.6rem;letter-spacing:0.15em;margin-top:6px;opacity:0.7;">
+          ASK ₹${d.aggregator_ask_inr} · MAX ₹${d.max_buy_price_inr.toFixed(2)} · MARGIN ${d.margin_at_ask_pct?.toFixed(1)||'—'}%
+        </div>
+      </div>
+    </div>
+    <div class="margin-table">
+      <div class="mt-row"><span class="lbl">Gross Metal Value (USD)</span><span class="val">$${d.gross_metal_value_usd.toFixed(4)}/kg</span></div>
+      <div class="mt-row"><span class="lbl">× USD/INR @ ₹${d.usd_inr_rate.toFixed(2)}</span><span class="val">₹${d.selling_price_inr.toFixed(2)}</span></div>
+      <div class="mt-row"><span class="lbl">× Payable Rate (75%)</span><span class="val">₹${(d.selling_price_inr).toFixed(2)}</span></div>
+      <div class="mt-row"><span class="lbl">− Profit Margin (10%)</span><span class="val" style="color:var(--red);">−₹${(d.selling_price_inr*0.10).toFixed(2)}</span></div>
+      <div class="mt-row"><span class="lbl">− Error Buffer (1%)</span><span class="val" style="color:var(--red);">−₹${(d.selling_price_inr*0.01).toFixed(2)}</span></div>
+      <div class="mt-row"><span class="lbl">− Hub Costs (fixed)</span><span class="val" style="color:var(--red);">−₹12.70</span></div>
+      <div class="mt-row highlight"><span class="lbl">MAX BUY PRICE</span><span class="val">₹${d.max_buy_price_inr.toFixed(2)} / kg</span></div>
+      ${d.margin_at_ask_pct !== null ? `<div class="mt-row"><span class="lbl">Actual Margin @ ₹${d.aggregator_ask_inr} ask</span><span class="val" style="color:${margColor};">${d.margin_at_ask_pct.toFixed(1)}%</span></div>` : ''}
+    </div>
+    ${d.warnings?.length ? `<div style="margin:0 12px 8px;padding:8px 12px;background:rgba(255,184,0,0.05);border:1px solid rgba(255,184,0,0.2);font-family:var(--mono);font-size:0.6rem;color:var(--amber);line-height:1.9;">${d.warnings.map(w=>`⚠ ${w}`).join('<br>')}</div>` : ''}
+  `;
+}
 
-        case 'calculation':
-          setStep(3, true);
-          calcSection = createCalcSection(data);
-          content.appendChild(calcSection);
-          break;
+// ── News section ──────────────────────────────────────────────────────────────
+function renderNews(d) {
+  const sec = addSection('sec-news');
+  const articles = d.articles || [];
+  const withUrl = articles.filter(a => a.url);
+  const withoutUrl = articles.filter(a => !a.url);
+  const sorted = [...withUrl, ...withoutUrl];
 
-        case 'news':
-          setStep(4, true);
-          newsSection = createNewsSection(data);
-          content.appendChild(newsSection);
-          break;
+  sec.innerHTML = `<div class="card-sep">MARKET INTELLIGENCE — ${d.articles_total} ARTICLES SCRAPED</div>`;
 
-        case 'forecast':
-          setStep(5, true);
-          forecastSection = createForecastSection(data);
-          content.appendChild(forecastSection);
-          break;
+  if (sorted.length === 0) {
+    sec.innerHTML += `<div style="padding:20px;text-align:center;font-family:var(--mono);font-size:0.62rem;color:var(--text3);">No articles scraped — check network access</div>`;
+    return;
+  }
 
-        case 'error':
-          showError(data.message);
-          break;
+  const grid = document.createElement('div');
+  grid.className = 'news-grid';
 
-        case 'done':
-          setStep(5, true);
-          break;
-      }
+  sorted.slice(0, 15).forEach(a => {
+    const hasUrl = !!a.url;
+    const priceTag = a.price_mentions?.length
+      ? `<span class="ac-price-mention">$${a.price_mentions[0].value?.toLocaleString()}/t</span>` : '';
+
+    const card = document.createElement(hasUrl ? 'a' : 'div');
+    card.className = 'article-card';
+    if (hasUrl) {
+      card.href = a.url;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
     }
-
-    function finish() {
-      isRunning = false;
-      btn.disabled = false;
-      btn.textContent = '▶ RUN ANALYSIS';
-    }
-  }
-
-  // ── UI builders ──
-
-  function createSection(title, bodyClass, bodyId) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `<div class="card-title">${title}</div>`;
-    const body = document.createElement('div');
-    body.className = bodyClass;
-    if (bodyId) body.id = bodyId;
-    card.appendChild(body);
-    return { card, body };
-  }
-
-  function addMetalCard(container, data) {
-    const confClass = 'conf-' + (data.confidence.split('-')[0]);
-    const div = document.createElement('div');
-    div.className = `metal-card ${confClass}`;
-    div.innerHTML = `
-      <div class="metal-name">${data.metal.toUpperCase()}</div>
-      <div class="metal-price">$${Number(data.price).toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
-      <div class="metal-unit">USD / tonne · ${data.sources} source${data.sources !== 1 ? 's' : ''}</div>
-      <div class="confidence-bar"><div class="confidence-fill"></div></div>
-      <div class="confidence-label">${data.confidence} · ±${data.spread.toFixed(1)}%</div>
-    `;
-    container.appendChild(div);
-  }
-
-  function createCalcSection(data) {
-    const card = document.createElement('div');
-    card.className = 'card';
-
-    const isBuy = data.buy_decision;
-    const headroom = data.max_buy_price_inr - data.aggregator_ask_inr;
-    const headroomColor = headroom >= 0 ? 'var(--green)' : 'var(--red)';
-
     card.innerHTML = `
-      <div class="card-title">MARGIN ANALYSIS — ${data.chemistry}</div>
-
-      <div class="decision-panel" style="margin-bottom:1.2rem;">
-        <div class="decision-cell">
-          <div class="label">Selling Price</div>
-          <div class="value" style="color:var(--text); font-size:1.3rem;">₹${data.selling_price_inr.toFixed(2)}</div>
-          <div class="sub">after 75% payable rate</div>
-        </div>
-        <div class="decision-cell">
-          <div class="label">Max Buy Price</div>
-          <div class="value" style="color:var(--amber);">₹${data.max_buy_price_inr.toFixed(2)}</div>
-          <div class="sub">after margins + costs</div>
-        </div>
-        <div class="decision-cell">
-          <div class="label">Headroom</div>
-          <div class="value" style="color:${headroomColor}; font-size:1.3rem;">₹${headroom.toFixed(2)}</div>
-          <div class="sub">ask vs max buy</div>
+      <div class="ac-dot ${a.sentiment}"></div>
+      <div style="flex:1;">
+        <div class="ac-headline">${escHtml(a.headline)}</div>
+        <div class="ac-meta">
+          <span class="ac-source">${a.source}</span>
+          <span class="ac-metal">${(a.metal||'').toUpperCase()}</span>
+          ${priceTag}
+          ${hasUrl ? `<span class="ac-link">OPEN ↗</span>` : ''}
         </div>
       </div>
-
-      <div class="margin-stack" style="margin-bottom:1.2rem;">
-        <div class="margin-row"><span class="label">Gross Metal Value</span><span class="val">$${data.gross_metal_value_usd.toFixed(4)}/kg</span></div>
-        <div class="margin-row"><span class="label">Selling Price (USD → INR @ ₹${data.usd_inr_rate.toFixed(2)})</span><span class="val">₹${data.selling_price_inr.toFixed(2)}</span></div>
-        <div class="margin-row"><span class="label">− Profit Margin (10%)</span><span class="val" style="color:var(--red);">−₹${(data.selling_price_inr * 0.10).toFixed(2)}</span></div>
-        <div class="margin-row"><span class="label">− Error Buffer (1%)</span><span class="val" style="color:var(--red);">−₹${(data.selling_price_inr * 0.01).toFixed(2)}</span></div>
-        <div class="margin-row"><span class="label">− Hub Costs (fixed)</span><span class="val" style="color:var(--red);">−₹12.70</span></div>
-        <div class="margin-row highlight"><span class="label">MAX BUY PRICE</span><span class="val">₹${data.max_buy_price_inr.toFixed(2)}/kg</span></div>
-        <div class="margin-row"><span class="label">Aggregator Ask</span><span class="val">₹${data.aggregator_ask_inr.toFixed(2)}/kg</span></div>
-        ${data.margin_at_ask_pct !== null ? `<div class="margin-row"><span class="label">Actual Margin @ Ask</span><span class="val" style="color:${data.margin_at_ask_pct > 0 ? 'var(--green)' : 'var(--red)'};">${data.margin_at_ask_pct.toFixed(1)}%</span></div>` : ''}
-      </div>
-
-      <div class="decision-box ${isBuy ? 'buy' : 'stop'}">
-        ${isBuy ? '✅ BUY' : '🛑 HARD STOP'}
-      </div>
-
-      ${data.warnings && data.warnings.length > 0 ? `
-        <div style="margin-top:0.8rem; font-size:0.65rem; color:var(--amber); line-height:1.8;">
-          ${data.warnings.map(w => `⚠ ${w}`).join('<br>')}
-        </div>
-      ` : ''}
     `;
-    return card;
-  }
+    grid.appendChild(card);
+  });
 
-  function createNewsSection(data) {
-    const card = document.createElement('div');
-    card.className = 'card';
+  sec.appendChild(grid);
+}
 
-    const sentimentHTML = Object.entries(data.sentiment || {}).map(([metal, s]) => {
+// ── Forecast section ──────────────────────────────────────────────────────────
+function renderForecast(d) {
+  const sec = addSection('sec-forecast');
+  const isSell = d.signal === 'SELL TODAY';
+  sec.innerHTML = `
+    <div class="card-sep">AI AGENT FORECAST</div>
+    <div class="forecast-box">
+      <div class="forecast-signal ${isSell ? 'sell' : 'hold'}">${d.signal}</div>
+      <div style="font-family:var(--display);font-size:0.5rem;letter-spacing:0.15em;color:var(--text3);margin-bottom:8px;">FULL AGENT REPORT</div>
+      <div class="forecast-report">${escHtml(d.full_report||'No report generated.')}</div>
+    </div>
+  `;
+}
+
+// ── Sentiment section (right panel) ──────────────────────────────────────────
+function renderSentiment(sentiment, lme) {
+  const sec = document.getElementById('sentimentSection');
+  if (!sec) return;
+  sec.innerHTML = '';
+
+  if (Object.keys(sentiment).length > 0) {
+    const d = document.createElement('div');
+    d.className = 'sentiment-section';
+    d.innerHTML = `<div class="sent-title">MARKET SENTIMENT</div>`;
+
+    Object.entries(sentiment).forEach(([metal, s]) => {
       const total = s.total_articles || 1;
       const bullPct = Math.round((s.bullish / total) * 100);
-      return `
-        <div class="sentiment-row">
-          <div class="sentiment-metal">${metal}</div>
-          <div class="sentiment-bar-wrap">
-            <div class="sentiment-bar-bull" style="width:${bullPct}%"></div>
-          </div>
-          <div class="sentiment-label ${s.signal}">${s.signal || '—'}</div>
-          <div style="font-size:0.6rem; color:var(--textdim);">${total} articles</div>
+      const sigClass = s.signal === 'BULLISH' ? 'BULLISH' : s.signal === 'BEARISH' ? 'BEARISH' : s.signal === 'MIXED' ? 'MIXED' : 'NO';
+      d.innerHTML += `
+        <div class="sent-row">
+          <div class="sent-metal">${metal.toUpperCase()}</div>
+          <div class="sent-bar-bg"><div class="sent-bar-fill" style="width:${bullPct}%"></div></div>
+          <div class="sent-signal ${sigClass}">${s.signal || 'N/A'}</div>
         </div>
       `;
-    }).join('');
-
-    const headlinesHTML = (data.headlines || []).map(h => `
-      <div class="headline-item">
-        <div class="hl-sentiment ${h.sentiment}"></div>
-        <div>
-          <div>${h.headline}</div>
-          <div class="hl-source">${h.source} · ${h.metal.toUpperCase()}</div>
-        </div>
-      </div>
-    `).join('');
-
-    card.innerHTML = `
-      <div class="card-title">MARKET INTELLIGENCE — ${data.articles_total} ARTICLES SCRAPED</div>
-      <div style="margin-bottom:1rem;">
-        <div class="panel-label" style="margin-bottom:0.6rem;">Sentiment by Metal</div>
-        ${sentimentHTML || '<div style="color:var(--textdim);font-size:0.72rem;">No sentiment data</div>'}
-      </div>
-      <div>
-        <div class="panel-label" style="margin-bottom:0.6rem;">Top Headlines</div>
-        ${headlinesHTML || '<div style="color:var(--textdim);font-size:0.72rem;">No headlines scraped</div>'}
-      </div>
-    `;
-    return card;
+    });
+    sec.appendChild(d);
   }
 
-  function createForecastSection(data) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const isSell = data.signal === 'SELL TODAY';
+  if (lme && Object.keys(lme).length > 0) {
+    const lmeDiv = document.getElementById('lmeSection');
+    if (lmeDiv) {
+      lmeDiv.innerHTML = '';
+      const t = document.createElement('div');
+      t.innerHTML = `<div class="sec-head"><span>LME INVENTORY</span><div class="sec-head-accent"></div></div>`;
+      Object.entries(lme).forEach(([metal, data]) => {
+        const isBull = data.signal?.includes('bullish');
+        t.innerHTML += `
+          <div class="inv-row">
+            <span class="inv-metal">${metal.toUpperCase()}</span>
+            <span class="inv-val" style="color:${isBull ? 'var(--green)' : 'var(--red)'};">${(data.lme_stock_tonnes||0).toLocaleString()}t</span>
+          </div>
+        `;
+      });
+      lmeDiv.appendChild(t);
+    }
+  }
+}
 
-    card.innerHTML = `
-      <div class="card-title">AI AGENT FORECAST</div>
-      <div class="forecast-signal ${isSell ? 'sell' : 'hold'}">${data.signal}</div>
-      <div class="panel-label" style="margin-bottom:0.5rem;">Full Agent Report</div>
-      <div class="full-report">${data.full_report || 'No report generated.'}</div>
-    `;
-    return card;
+// ── Main run ──────────────────────────────────────────────────────────────────
+function runAnalysis() {
+  if (isRunning) return;
+  isRunning = true;
+  lastAgent = null;
+  metalsContainer = null;
+  chartsMap = {};
+
+  const ask = parseFloat(document.getElementById('askInput').value) || 300;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ ANALYZING...';
+
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill running';
+  pill.textContent = '● RUNNING';
+
+  // Clear center
+  document.getElementById('centerPanel').innerHTML = `<div style="padding:30px;font-family:var(--mono);font-size:0.65rem;color:var(--text3);letter-spacing:0.1em;">INITIALIZING PIPELINE<span class="typing-cursor"></span></div>`;
+
+  // Clear agent stream
+  document.getElementById('agentStream').innerHTML = '';
+
+  setStep(0);
+
+  fetch('/analyze', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({chemistry: selectedChem, aggregator_ask_inr: ask}),
+  }).then(resp => {
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    function read() {
+      reader.read().then(({done, value}) => {
+        if (done) { finish(); return; }
+        buf += dec.decode(value, {stream: true});
+        const parts = buf.split('\n\n');
+        buf = parts.pop();
+        parts.forEach(part => {
+          let event = 'message', data = '';
+          part.split('\n').forEach(line => {
+            if (line.startsWith('event: ')) event = line.slice(7).trim();
+            if (line.startsWith('data: ')) data = line.slice(6);
+          });
+          if (data) {
+            try { handle(event, JSON.parse(data)); } catch(e) {}
+          }
+        });
+        read();
+      });
+    }
+    read();
+  }).catch(e => {
+    addThought('System', 'Connection failed: ' + e.message, 'error');
+    finish();
+  });
+
+  function handle(event, data) {
+    switch(event) {
+      case 'status':
+        setStep(data.step || 0);
+        break;
+      case 'thought':
+        addThought(data.agent, data.text, data.kind);
+        break;
+      case 'forex':
+        document.getElementById('forexNum').textContent = '₹' + data.rate.toFixed(4);
+        document.getElementById('forexSrc').textContent = data.source;
+        setStep(1);
+        buildTicker(metalPrices);
+        break;
+      case 'metal_price':
+        setStep(2);
+        renderMetalCard(data);
+        buildTicker(metalPrices);
+        break;
+      case 'calculation':
+        setStep(3);
+        renderCalc(data);
+        break;
+      case 'news':
+        setStep(4);
+        renderNews(data);
+        renderSentiment(data.sentiment, data.lme_inventory);
+        break;
+      case 'forecast':
+        setStep(5);
+        renderForecast(data);
+        break;
+      case 'error':
+        addThought('System', data.message, 'error');
+        break;
+      case 'done':
+        setStep(6);
+        break;
+    }
   }
 
-  function showError(msg) {
-    const content = document.getElementById('content');
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.innerHTML = `
-      <div class="card-title">ERROR</div>
-      <div class="error-box">${msg}</div>
-    `;
-    content.appendChild(div);
+  function finish() {
+    isRunning = false;
+    btn.disabled = false;
+    btn.textContent = '▶ RUN ANALYSIS';
+    pill.className = 'status-pill live';
+    pill.textContent = '● LIVE';
   }
+}
 </script>
 </body>
 </html>
