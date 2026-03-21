@@ -44,12 +44,6 @@ nvidia_brain = LLM(
     max_tokens=2000,
     timeout=300,
     max_retries=5,
-    model_kwargs={
-        "http_client": httpx.Client(
-            timeout=httpx.Timeout(300.0, read=300.0, connect=30.0),
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-        )
-    }
 )
 
 # ── Tool Instances ─────────────────────────────────────────────────────────────
