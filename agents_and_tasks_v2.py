@@ -26,21 +26,18 @@ os.environ["SERPER_API_KEY"] = SERPER_API_KEY
 # LiteLLM needs the API key in env for OpenAI-compatible providers
 os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
 
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
 # ── LLM ───────────────────────────────────────────────────────────────────────
 
-# Explicit litellm config for Railway deployments which often drop connections
-os.environ["LITELLM_MAX_RETRIES"] = "5"
-os.environ["REQUEST_TIMEOUT"] = "300"
-
-nvidia_brain = LLM(
-    model="openai/meta/llama-3.3-70b-instruct",
-    base_url="https://integrate.api.nvidia.com/v1",
+# Use LangChain's official NVIDIA integration instead of litellm to bypass connection errors
+nvidia_brain = ChatNVIDIA(
+    model="meta/llama-3.3-70b-instruct",
     api_key=NVIDIA_API_KEY,
     temperature=0,
     max_tokens=2000,
-    timeout=300,        # 300s timeout for Railway (higher latency)
-    max_retries=5,      # Retry more aggressively on connection drops
-    top_p=1,
+    timeout=120,    
+    max_retries=5,
 )
 
 # ── Tool Instances ─────────────────────────────────────────────────────────────
