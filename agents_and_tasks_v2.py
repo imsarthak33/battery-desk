@@ -33,12 +33,11 @@ os.environ["REQUEST_TIMEOUT"] = "300"
 os.environ["LITELLM_LOGGING"] = "False"
 os.environ["LITELLM_TELEMETRY"] = "False"
 
-import httpx
-
-# Use the 'openai/' prefix so LiteLLM uses the rock-solid OpenAI httpx client implementation.
+# Use explicit OpenAI provider (no httpx.Client object to serialize)
+# and avoid edge-case litellm fallback client serialization issue.
 nvidia_brain = LLM(
-    model="openai/meta/llama-3.3-70b-instruct",
-    base_url="https://integrate.api.nvidia.com/v1",
+    model="openai/gpt-4.1-mini",
+    provider="openai",
     api_key=NVIDIA_API_KEY,
     temperature=0,
     max_tokens=2000,
