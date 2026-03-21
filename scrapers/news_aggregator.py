@@ -72,6 +72,33 @@ class NewsAggregator:
                 except Exception as e:
                     logger.warning(f"✗ {name}: {e}")
 
+        # If everything was blocked (common on Railway IPs), fallback to Serper API
+        if len(all_articles) == 0:
+            logger.warning("All free scrapers blocked. Falling back to Serper API.")
+            import os
+            import requests
+            import json
+            serper_key = os.environ.get("SERPER_API_KEY", "")
+            if serper_key:
+                headers = {'X-API-KEY': serper_key, 'Content-Type': 'application/json'}
+                query = f"{' and '.join(self.metals)} battery metal price forecast market trend"
+                try:
+                    resp = requests.post('https://google.serper.dev/search', 
+                                         headers=headers, 
+                                         json={"q": query, "tbm": "nws"}, 
+                                         timeout=10)
+                    if resp.ok:
+                        for article in resp.json().get('news', [])[:5]:
+                            all_articles.append({
+                                "metal": self.metals[0],
+                                "headline": article.get("title", ""),
+                                "source": article.get("source", "Serper Fallback"),
+                                "sentiment": "neutral",
+                                "price_mentions": []
+                            })
+                except Exception as e:
+                    logger.error(f"Serper fallback failed: {e}")
+
         # Compute sentiment per metal
         sentiment = self._compute_sentiment(all_articles)
 
