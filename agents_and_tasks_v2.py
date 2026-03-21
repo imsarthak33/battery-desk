@@ -23,17 +23,19 @@ from tools.crewai_tools_v2 import (
 )
 
 os.environ["SERPER_API_KEY"] = SERPER_API_KEY
-# LiteLLM needs the API key in env for OpenAI-compatible providers
 os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
 
 os.environ["LITELLM_MAX_RETRIES"] = "5"
 os.environ["LITELLM_TIMEOUT"] = "300"
 os.environ["REQUEST_TIMEOUT"] = "300"
 
-from crewai import Agent, Task, LLM
+# Disable litellm telemetry which can crash on strict egress
+os.environ["LITELLM_LOGGING"] = "False"
+os.environ["LITELLM_TELEMETRY"] = "False"
+
+import httpx
 
 # Use the 'openai/' prefix so LiteLLM uses the rock-solid OpenAI httpx client implementation.
-# The native 'nvidia_nim/' provider in litellm has buggy Connection exception handling!
 nvidia_brain = LLM(
     model="openai/meta/llama-3.3-70b-instruct",
     base_url="https://integrate.api.nvidia.com/v1",
@@ -43,7 +45,10 @@ nvidia_brain = LLM(
     timeout=300,
     max_retries=5,
     model_kwargs={
-        "extra_body": {"timeout": 300}
+        "http_client": httpx.Client(
+            timeout=httpx.Timeout(300.0, read=300.0, connect=30.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+        )
     }
 )
 
