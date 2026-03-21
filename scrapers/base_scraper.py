@@ -78,9 +78,9 @@ class BaseScraper(ABC):
     SOURCE_NAME: str = "unknown"
     BASE_URL: str = ""
 
-    def __init__(self, timeout: int = 15):
+    def __init__(self, timeout: int = 8):
         self.timeout = timeout
-        self.session = make_session()
+        self.session = make_session(retries=1, backoff=0.5)
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def get(self, url: str, params: dict = None, extra_headers: dict = None) -> Optional[requests.Response]:
@@ -90,12 +90,11 @@ class BaseScraper(ABC):
             headers.update(extra_headers)
         try:
             resp = self.session.get(url, headers=headers, params=params, timeout=self.timeout)
-            if resp.status_code == 403:
-                self.logger.warning(f"403 Forbidden from {url} — bot detection triggered")
+            if resp.status_code in [403, 401]:
+                self.logger.warning(f"Blocked from {url} — bot detection triggered")
                 return None
             if resp.status_code == 429:
-                self.logger.warning(f"429 Rate Limited from {url} — backing off 10s")
-                time.sleep(10)
+                self.logger.warning(f"429 Rate Limited from {url}")
                 return None
             resp.raise_for_status()
             return resp

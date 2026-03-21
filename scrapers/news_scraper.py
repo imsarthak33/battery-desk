@@ -67,7 +67,6 @@ class ReutersMetalsScraper(BaseScraper):
             url = self.SEARCH_URLS.get(metal, f"https://www.reuters.com/search/news?blob={metal}+price")
             articles = self._scrape_section(url, metal)
             all_articles.extend(articles)
-            human_delay(2.0, 4.0)
 
         return {
             "source": self.SOURCE_NAME,
@@ -192,7 +191,6 @@ class MiningDotComScraper(BaseScraper):
             if metal_data.get("price"):
                 prices[metal] = metal_data["price"]
             articles.extend(metal_data.get("articles", []))
-            human_delay(1.5, 3.0)
 
         return {
             "source": self.SOURCE_NAME,
@@ -282,7 +280,6 @@ class EconomicTimesScraper(BaseScraper):
             url = self.SEARCH_URLS.get(metal, f"{self.BASE_URL}/topic/{metal}")
             new_articles = self._scrape_topic_page(url, metal)
             articles.extend(new_articles)
-            human_delay(1.5, 2.5)
 
         return {
             "source": self.SOURCE_NAME,

@@ -153,32 +153,23 @@ class GetMarketIntelligenceTool(BaseTool):
     args_schema: Type[BaseModel] = MarketIntelligenceInput
 
     def _run(self, metals: list[str]) -> str:
-        import requests
-        
-        # We use your Serper API key to run a live news search
-        headers = {
-            'X-API-KEY': os.environ.get("SERPER_API_KEY", ""),
-            'Content-Type': 'application/json'
-        }
-        query = f"{' and '.join(metals)} battery metal price forecast market trend"
-        payload = json.dumps({"q": query, "tbm": "nws"})
-        
         try:
-            response = requests.post('https://google.serper.dev/search', headers=headers, data=payload)
-            news_data = response.json()
+            from scrapers.news_aggregator import get_market_intelligence
             
-            # Extract top 3 headlines to feed to the Forecaster Agent
-            top_news = [article.get('title', '') for article in news_data.get('news', [])[:3]]
+            # Fetch the structured intelligence payload
+            intel = get_market_intelligence(metals)
             
-            structured_signal = {
-                "sentiment_indicators": {m: "Volatile - Requires Analysis" for m in metals},
-                "latest_headlines": top_news,
-                "lme_inventory_signal": "Global warehouse levels fluctuating.",
-                "sources": ["Serper Live News Search"]
-            }
-            return json.dumps(structured_signal, indent=2)
+            # The tool expects a string return value to pass to the LLM
+            # get_market_intelligence already generates a beautiful formatted string 
+            # in the 'recommendation_inputs' key!
+            if "recommendation_inputs" in intel:
+                return intel["recommendation_inputs"]
+                
+            # Fallback if something changed in the aggregator format
+            return json.dumps(intel, indent=2)
+            
         except Exception as e:
-            return json.dumps({"error": f"Failed to fetch market intelligence: {str(e)}"})
+            return f"❌ FAILED TO FETCH MARKET INTELLIGENCE: {str(e)}"
 
 # ── Tool 5: List Chemistries ──────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ from typing import AsyncGenerator
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -253,6 +253,14 @@ def get_chemistries():
 
 
 # ── Serve frontend ─────────────────────────────────────────────────────────────
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    favicon_path = BASE_DIR / "static" / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(str(favicon_path), media_type="image/x-icon")
+    return Response(status_code=204)
+
 
 @app.get("/")
 def root():
