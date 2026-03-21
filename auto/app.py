@@ -6,11 +6,15 @@ Fixed: all imports use lowercase 'database', not 'Database'
 import asyncio
 import json
 import os
+import sys
 import traceback
 import random
 import uuid
 from datetime import datetime, timedelta
 from typing import AsyncGenerator
+
+# Ensure the root project directory is in the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
