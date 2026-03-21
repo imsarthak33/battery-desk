@@ -35,6 +35,7 @@ if _nvidia_key:
     )
     os.environ["OPENAI_API_KEY"] = _nvidia_key
     os.environ["OPENAI_API_BASE"] = "https://integrate.api.nvidia.com/v1"
+    os.environ["OPENAI_BASE_URL"] = "https://integrate.api.nvidia.com/v1"
     logger.info("Using NVIDIA NIM LLM")
 
 elif _deepseek_key:

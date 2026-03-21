@@ -33,6 +33,7 @@ if NVIDIA_API_KEY:
     )
     os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
     os.environ["OPENAI_API_BASE"] = "https://integrate.api.nvidia.com/v1"
+    os.environ["OPENAI_BASE_URL"] = "https://integrate.api.nvidia.com/v1"
     print("🟢 Using NVIDIA NIM (Llama 3.3 70B)")
 else:
     from langchain_deepseek import ChatDeepSeek
