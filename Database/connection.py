@@ -1,48 +1,46 @@
 """
-database/connection.py
-───────────────────────
-Database connection setup.
-Uses SQLite locally and PostgreSQL on Railway (auto-detected via DATABASE_URL env var).
+database/connection.py — Fixed
+SQLite locally, PostgreSQL on Railway (auto via DATABASE_URL).
 """
 
 import os
 import logging
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from contextlib import contextmanager
 
-from .models import Base
-
 logger = logging.getLogger(__name__)
 
-# ── Detect database URL ────────────────────────────────────────────────────────
+# Import Base — must be after logger to avoid circular issues
+from database.models import Base
+
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 if DATABASE_URL:
-    # Railway / Production PostgreSQL
-    # Railway gives postgres:// but SQLAlchemy needs postgresql://
+    # Railway PostgreSQL — fix URL prefix
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,      # reconnect if connection dropped
+        pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
         echo=False,
     )
     logger.info("Connected to PostgreSQL (Railway)")
 else:
-    # Local SQLite — zero config, works immediately
-    DB_PATH = os.path.join(os.path.dirname(__file__), "..", "batterydesk.db")
-    DB_PATH = os.path.abspath(DB_PATH)
+    # Local SQLite
+    DB_PATH = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "batterydesk.db")
+    )
     engine = create_engine(
         f"sqlite:///{DB_PATH}",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
         echo=False,
     )
-    # Enable WAL mode for better concurrent reads on SQLite
+
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_conn, connection_record):
         cursor = dbapi_conn.cursor()
@@ -56,14 +54,17 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """Create all tables if they don't exist."""
+    """Create all tables."""
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables initialized")
+    logger.info("All database tables created successfully")
 
 
 @contextmanager
-def get_db() -> Session:
-    """Context manager for database sessions with auto-commit/rollback."""
+def get_db():
+    """
+    Context manager for DB sessions.
+    Always call inside: with get_db() as db:
+    """
     db = SessionLocal()
     try:
         yield db

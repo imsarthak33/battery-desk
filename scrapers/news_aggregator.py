@@ -21,6 +21,7 @@ from scrapers.news_scraper import (
     BULLISH_KEYWORDS,
     BEARISH_KEYWORDS,
 )
+from scrapers.api_news_scraper import fetch_all_news
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class NewsAggregator:
             "mining.com": lambda: MiningDotComScraper(metals=self.metals).scrape(),
             "economic_times": lambda: EconomicTimesScraper(metals=self.metals).scrape(),
             "lme_notices": lambda: LMENoticesScraper().scrape(),
+            "api_news": lambda: fetch_all_news(metals=self.metals),
         }
 
         all_articles = []
